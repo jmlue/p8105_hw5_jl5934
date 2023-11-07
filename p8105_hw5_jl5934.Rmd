@@ -9,3 +9,89 @@ output: html_document
 library(tidyverse)
 ```
 
+# Problem 1 - WaPo
+
+```{r}
+WaPo.df <- read_csv("data/homicide-data.csv") %>%
+  janitor::clean_names()
+```
+
+The data includes `r print(colnames(WaPo.df)`, with a total of `r nrow(WaPo.df)` observations. 
+
+```{r}
+WaPo.df %>%
+  mutate(city_state = 
+           paste0(city,", ",state)) %>%
+  filter(disposition %in% c("Closed without arrest", "Open/No arrest")) %>%
+  group_by(city_state, disposition) %>%
+  summarize(n_obs = n()) %>%
+  pivot_wider(names_from = disposition,
+              values_from = n_obs
+  )
+  
+```
+
+```{r}
+WaPo.df %>%
+  mutate(city_state = 
+           paste0(city,", ",state)) %>%
+  filter(city_state = "Baltimore, MD") %>%
+  count(filter(city_state == "Baltimore, MD", disposition %in% c("Closed without arrest", "Open/No arrest")))
+  
+  prop.test(x = count())
+```
+
+
+# Problem 2
+
+```{r}
+file_list <- list.files("data/data/")
+
+file_reader = function(x) {
+  
+  data_x = read_csv(paste0("data/data/", x))
+  name_x = gsub(".csv","",x)
+  
+  tibble(
+    name = name_x,
+    data = as.data.frame(data_x)
+  )
+}
+
+output = map(file_list, file_reader) %>%
+  unnest(cols = data)
+
+
+```
+
+```{r}
+
+geom_line()
+```
+
+
+# Problem 3
+
+```{r}
+sim_mean_test = function(n = 30, mu = 0, sigma = 5) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma),
+  )
+  
+  t_test = broom::tidy(t.test(sim_data, mu = mu))
+  
+  sim_data |> 
+    summarize(
+      mu_hat = t_test[["estimate"]],
+      p_value = t_test[["p.value"]]
+    )
+}
+
+output_sim = vector("list", 50)
+
+for (i in 1:5000) {
+  output_sim[[i]] = sim_mean_test(30)
+}
+```
+
