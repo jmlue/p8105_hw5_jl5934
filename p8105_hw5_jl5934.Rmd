@@ -55,18 +55,26 @@ file_reader = function(x) {
   tibble(
     name = name_x,
     data = as.data.frame(data_x)
-  )
+  ) %>% 
+  unnest(cols = data)
+    
 }
 
 output = map(file_list, file_reader) %>%
-  unnest(cols = data)
-
+  bind_rows() %>%
+  pivot_longer(
+    cols = week_1:week_8,
+    names_to = "week",
+    names_prefix = "week_",
+    values_to = "value"
+  ) %>%
+  rename("subject" = "name")
 
 ```
 
 ```{r}
-
-geom_line()
+ggplot(data = output, aes(x = week, y = value, group = subject)) +
+geom_line(aes(color = subject))
 ```
 
 
