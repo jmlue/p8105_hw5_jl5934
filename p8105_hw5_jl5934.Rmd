@@ -11,14 +11,14 @@ library(tidyverse)
 
 # Problem 1 - WaPo
 
-```{r}
+```{r WaPo dataset read}
 WaPo.df <- read_csv("data/homicide-data.csv") %>%
   janitor::clean_names()
 ```
 
-The data includes `r print(colnames(WaPo.df)`, with a total of `r nrow(WaPo.df)` observations. 
+The data includes `r print(colnames(WaPo.df))`, with a total of `r nrow(WaPo.df)` observations. 
 
-```{r}
+```{r WaPo tidy}
 WaPo.df %>%
   mutate(city_state = 
            paste0(city,", ",state)) %>%
@@ -31,20 +31,20 @@ WaPo.df %>%
   
 ```
 
-```{r}
+```{r WaPO filter,eval=FALSE }
 WaPo.df %>%
   mutate(city_state = 
            paste0(city,", ",state)) %>%
-  filter(city_state = "Baltimore, MD") %>%
+  filter(city_state == "Baltimore, MD") %>%
   count(filter(city_state == "Baltimore, MD", disposition %in% c("Closed without arrest", "Open/No arrest")))
   
-  prop.test(x = count())
+  #prop.test(x = count())
 ```
 
 
 # Problem 2
 
-```{r}
+```{r prep trial data}
 file_list <- list.files("data/data/")
 
 file_reader = function(x) {
@@ -68,38 +68,216 @@ output = map(file_list, file_reader) %>%
     names_prefix = "week_",
     values_to = "value"
   ) %>%
-  rename("subject" = "name")
+  rename("subject" = "name") %>%
+  mutate(group = 
+           ifelse(subject %in% c("con_01","con_02","con_03","con_04","con_05","con_06","con_07","con_08","con_09","con_10"), "control", "experimental"))
 
 ```
 
-```{r}
+```{r plot trial data}
 ggplot(data = output, aes(x = week, y = value, group = subject)) +
-geom_line(aes(color = subject))
+geom_line(aes(color = group))
 ```
 
 
 # Problem 3
 
-```{r}
+sim_data = tibble(
+    x = rnorm(n = 30, mean = 0, sd = 5),
+    mu = 0
+  )
+t_test = broom::tidy(t.test(sim_data, mu = 0))
+sim_data |> 
+    mutate(
+      estimate = summarize(t_test[["estimate"]]),
+      p_value = summarize(t_test[["p.value"]])
+    )
+
+
+sim_data <- sim_data |> 
+    summarize(
+      mu_hat = t_test[["estimate"]],
+      p_value = t_test[["p.value"]]
+    ) 
+
+```{r create sim_0}
+#mu_list = 0:6
+output_sim = vector("list", 5000)
+file_list = 1:5000
+
 sim_mean_test = function(n = 30, mu = 0, sigma = 5) {
   
   sim_data = tibble(
-    x = rnorm(n, mean = mu, sd = sigma),
+    x = rnorm(n, mean = mu, sd = sigma), 
+    mu = mu
   )
   
   t_test = broom::tidy(t.test(sim_data, mu = mu))
   
-  sim_data |> 
-    summarize(
-      mu_hat = t_test[["estimate"]],
-      p_value = t_test[["p.value"]]
+  power_data = tibble(
+    estimate = t_test[["estimate"]],
+    p_value = t_test[["p.value"]],
+    mean = mu
     )
 }
 
-output_sim = vector("list", 50)
+output_sim_0 = map(file_list, sim_mean_test) %>%
+  bind_rows() #%>%   mutate(mu = mu_list)
 
-for (i in 1:5000) {
-  output_sim[[i]] = sim_mean_test(30)
+```
+
+
+```{r create sim1:6}
+output_sim = vector("list", 5000)
+file_list = 1:5000
+
+sim_mean_test = function(n = 30, mu = 1, sigma = 5) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma), 
+    mu = mu
+  )
+  
+  t_test = broom::tidy(t.test(sim_data, mu = mu))
+  
+  power_data = tibble(
+    estimate = t_test[["estimate"]],
+    p_value = t_test[["p.value"]],
+    mean = mu
+    )
 }
+
+output_sim_1 = map(file_list, sim_mean_test) %>%
+  bind_rows() #%>%   mutate(mu = mu_list)
+
+output_sim = vector("list", 5000)
+file_list = 1:5000
+
+sim_mean_test = function(n = 30, mu = 2, sigma = 5) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma), 
+    mu = mu
+  )
+  
+  t_test = broom::tidy(t.test(sim_data, mu = mu))
+  
+  power_data = tibble(
+    estimate = t_test[["estimate"]],
+    p_value = t_test[["p.value"]],
+    mean = mu
+    )
+}
+
+output_sim_2 = map(file_list, sim_mean_test) %>%
+  bind_rows() #%>%   mutate(mu = mu_list)
+
+output_sim = vector("list", 5000)
+file_list = 1:5000
+
+sim_mean_test = function(n = 30, mu = 3, sigma = 5) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma), 
+    mu = mu
+  )
+  
+  t_test = broom::tidy(t.test(sim_data, mu = mu))
+  
+  power_data = tibble(
+    estimate = t_test[["estimate"]],
+    p_value = t_test[["p.value"]],
+    mean = mu
+    )
+}
+
+output_sim_3 = map(file_list, sim_mean_test) %>%
+  bind_rows() #%>%   mutate(mu = mu_list)
+
+output_sim = vector("list", 5000)
+file_list = 1:5000
+
+sim_mean_test = function(n = 30, mu = 4, sigma = 5) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma), 
+    mu = mu
+  )
+  
+  t_test = broom::tidy(t.test(sim_data, mu = mu))
+  
+  power_data = tibble(
+    estimate = t_test[["estimate"]],
+    p_value = t_test[["p.value"]],
+    mean = mu
+    )
+}
+
+output_sim_4 = map(file_list, sim_mean_test) %>%
+  bind_rows() #%>%   mutate(mu = mu_list)
+
+output_sim = vector("list", 5000)
+file_list = 1:5000
+
+sim_mean_test = function(n = 30, mu = 5, sigma = 5) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma), 
+    mu = mu
+  )
+  
+  t_test = broom::tidy(t.test(sim_data, mu = mu))
+  
+  power_data = tibble(
+    estimate = t_test[["estimate"]],
+    p_value = t_test[["p.value"]],
+    mean = mu
+    )
+}
+
+output_sim_5 = map(file_list, sim_mean_test) %>%
+  bind_rows() #%>%   mutate(mu = mu_list)
+
+output_sim = vector("list", 5000)
+file_list = 1:5000
+
+sim_mean_test = function(n = 30, mu = 6, sigma = 5) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma), 
+    mu = mu
+  )
+  
+  t_test = broom::tidy(t.test(sim_data, mu = mu))
+  
+  power_data = tibble(
+    estimate = t_test[["estimate"]],
+    p_value = t_test[["p.value"]],
+    mean = mu
+    )
+}
+
+output_sim_6 = map(file_list, sim_mean_test) %>%
+  bind_rows() #%>%   mutate(mu = mu_list)
+```
+
+```{r merge all}
+output_sum_all <- bind_rows(output_sim_0, output_sim_1, output_sim_2, output_sim_3, output_sim_4, output_sim_5, output_sim_6) %>%
+  mutate(significant = ifelse(p_value < 0.05, "reject_null", "not_reject_null"))
+```
+
+```{r plot power}
+ggplot(output_sum_all, aes(x = mean, fill = factor(significant))) +
+  geom_bar(position = "fill")
+```
+
+```{r plot mean sample vs population}
+ggplot(output_sum_all, aes(x = mean, y = estimate)) + 
+  geom_point()
+
+output_sum_all %>%
+  filter(significant == "reject_null") %>%
+  ggplot(aes(x = mean, y = estimate)) +
+  geom_point()
 ```
 
