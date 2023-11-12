@@ -19,26 +19,76 @@ WaPo.df <- read_csv("data/homicide-data.csv") %>%
 The data includes `r print(colnames(WaPo.df))`, with a total of `r nrow(WaPo.df)` observations. 
 
 ```{r WaPo tidy}
-WaPo.df %>%
+unsolved <- WaPo.df %>%
+  filter(disposition %in% c("Closed without arrest", "Open/No arrest")) %>%
   mutate(city_state = 
            paste0(city,", ",state)) %>%
-  filter(disposition %in% c("Closed without arrest", "Open/No arrest")) %>%
-  group_by(city_state, disposition) %>%
-  summarize(n_obs = n()) %>%
-  pivot_wider(names_from = disposition,
-              values_from = n_obs
-  )
-  
+  group_by(city_state) %>%
+  summarize(unsolved = n()) 
+
+total_homicides <- WaPo.df %>%
+  mutate(city_state = 
+           paste0(city,", ",state)) %>%
+  group_by(city_state) %>%
+  summarize(total = n()) 
+
+solved <- WaPo.df %>%
+  filter(disposition %in% c("Closed by arrest")) %>%
+  mutate(city_state = 
+           paste0(city,", ",state)) %>%
+  group_by(city_state) %>%
+  summarize(solved = n())
+
 ```
 
 ```{r WaPO filter,eval=FALSE }
-WaPo.df %>%
-  mutate(city_state = 
-           paste0(city,", ",state)) %>%
+prop_homicide <- full_join(unsolved, solved, by = "city_state") %>%
+  replace(is.na(.), 0) %>%
   filter(city_state == "Baltimore, MD") %>%
-  count(filter(city_state == "Baltimore, MD", disposition %in% c("Closed without arrest", "Open/No arrest")))
+  column_to_rownames(var = "city_state") %>%
+    as.matrix() 
+
+test <- broom::tidy(prop.test(prop_homicide))
+
+tibble(
+  prop_unsolved = test[["estimate"]],
+  CI_low = test[["conf.low"]],
+  CI_upper = test[["conf.high"]]
+)
+
+```
+
+```{r}
+cities = as.vector(total_homicides[["city_state"]])
+
+prop_hom = function(x) {
   
-  #prop.test(x = count())
+  prop_homicide <- full_join(unsolved, solved, by = "city_state") %>%
+  replace(is.na(.), 0) %>%
+  filter(city_state == x) %>%
+  column_to_rownames(var = "city_state") %>%
+    as.matrix() 
+
+test <- broom::tidy(prop.test(prop_homicide))
+
+tibble(
+  city = x,
+  prop_unsolved = test[["estimate"]],
+  CI_low = test[["conf.low"]],
+  CI_upper = test[["conf.high"]]
+)
+  
+}
+
+WaPo_output = map(cities, prop_hom) %>%
+  bind_rows()
+```
+
+```{r}
+ggplot(WaPo_output, aes(x = fct_reorder(city, prop_unsolved), y = prop_unsolved)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = CI_low, ymax = CI_upper)) + 
+  theme(axis.text.x = element_text(angle = 45, size = 5))
 ```
 
 
