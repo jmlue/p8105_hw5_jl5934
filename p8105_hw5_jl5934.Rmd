@@ -91,8 +91,14 @@ ggplot(WaPo_output, aes(x = fct_reorder(city, prop_unsolved), y = prop_unsolved)
   theme(axis.text.x = element_text(angle = 45, size = 5, hjust = 1))
 ```
 
+* We see that there is some variability amongst the rates of unsolved murders, with the lowest at the outler of Chicago (showing a very high proportion overall of not being solved). 
+
+* There is one other outlier with Tulsa, AL where the one murder was indeed solved. 
+
 
 # Problem 2
+
+First we will read in the data, unnest it as we read in multiple sheets, and then clean it up to a tidy dataset with variables we require for further analysis. 
 
 ```{r prep trial data}
 file_list <- list.files("data/data/")
@@ -124,6 +130,8 @@ output = map(file_list, file_reader) %>%
 
 ```
 
+We will then create a plot showing the change by week of each subject, split by which arm of the study they were. 
+
 ```{r plot trial data}
 ggplot(data = output, aes(x = week, y = value, group = subject)) +
   geom_point(aes(color = subject)) +
@@ -140,212 +148,46 @@ ggplot(data = output, aes(x = week, y = value, group = subject)) +
 
 # Problem 3
 
+We will first create a simulation function based on parameters set at n=30, sigma=5, but mu that varies form 0-6. We will need to save this into a dataframe within a list. 
+
+We will use the t.test function for a one-sample t-test to evaluate if our mean mu-hat was significantly different from an expected population mean of 0.
+
+Lastly, we will mutate a variable that relates to if we rejected the null hypothesis, based on whether the p-value from the t-test was <0.05. 
+
 ```{r}
 sim_mean_test = function(n = 30, mu, sigma = 5) {
   sim_data = tibble(
     x = rnorm(n, mean = mu, sd = sigma),
     )
   
-  t_test = broom::tidy(t.test(x ~ 1, data = sim_data))
+  output = sim_data %>% 
+    summarize(
+      mu_hat = mean(x),
+      p_value = broom::tidy(t.test(x)) %>% pull("p.value")
+    )
+  
+  return(output)
 } 
 
-#means = 0:6
-#iterations = 1:5000
+mu_list = c(0:6)
 
-output_sim =
-  tibble(mu = 0:6) %>%
-  mutate(
-    output_sim_means = map(.x = mu, ~replicate(50, sim_mean_test(mu = .x)))
-    )
-
-output_sim = output_sim %>%
-  mutate(output_dfs = bind_rows(output_sim_means))
-    
-    output_dfs = map(output_sim_means, bind_rows)
+output_sim = expand_grid(
+    iterations = 1:5000, 
+    mu = mu_list
   ) %>%
-  select(-output_sim_means)
+  mutate(
+    output_sim_df = pmap(list(n = 30, mu = mu, sigma = 5), sim_mean_test)
+  ) %>%
+  unnest(output_sim_df)
+
+output_sim <- output_sim %>%
+  mutate(significant = if_else(p_value < 0.05, "reject_null", "not_reject_null"))
 ```
 
-```{r}
-output_sum = output_sum %>%
-  unnest(output_dfs) %>%
-  select
-```
-
-
-```{r create sim_0}
-#mu_list = 0:6
-output_sim = vector("list", 5000)
-file_list = 1:50
-
-sim_mean_test = function(n = 30, mu = 0, sigma = 5) {
-  
-  sim_data = tibble(
-    x = rnorm(n, mean = mu, sd = sigma)
-  )
-  
-  t_test = broom::tidy(t.test(sim_data$x, mu = 0, x ~ 1))
-  
-  power_data = tibble(
-    estimate = t_test[["estimate"]],
-    p_value = t_test[["p.value"]],
-    mean = mu
-    )
-}
-
-output_sim_0 = map(file_list, sim_mean_test) %>%
-  bind_rows()
-
-```
-
-
-```{r create sim1:6}
-output_sim = vector("list", 5000)
-file_list = 1:5000
-
-sim_mean_test = function(n = 30, mu = 1, sigma = 5) {
-  
-  sim_data = tibble(
-    x = rnorm(n, mean = mu, sd = sigma), 
-    mu = mu
-  )
-  
-  t_test = broom::tidy(t.test(x ~ 1, data = sim_data, mu = 0))
-  
-  power_data = tibble(
-    estimate = t_test[["estimate"]],
-    p_value = t_test[["p.value"]],
-    mean = mu
-    )
-}
-
-output_sim_1 = map(file_list, sim_mean_test) %>%
-  bind_rows() #%>%   mutate(mu = mu_list)
-
-output_sim = vector("list", 5000)
-file_list = 1:5000
-
-
-sim_mean_test = function(n = 30, mu = 2, sigma = 5) {
-  
-  sim_data = tibble(
-    x = rnorm(n, mean = mu, sd = sigma), 
-    mu = mu
-  )
-  
-  t_test = broom::tidy(t.test(x ~ 1, data = sim_data, mu = 0))
-  
-  power_data = tibble(
-    estimate = t_test[["estimate"]],
-    p_value = t_test[["p.value"]],
-    mean = mu
-    )
-}
-
-output_sim_2 = map(file_list, sim_mean_test) %>%
-  bind_rows() #%>%   mutate(mu = mu_list)
-
-output_sim = vector("list", 5000)
-file_list = 1:5000
-
-
-sim_mean_test = function(n = 30, mu = 3, sigma = 5) {
-  
-  sim_data = tibble(
-    x = rnorm(n, mean = mu, sd = sigma), 
-    mu = mu
-  )
-  
-  t_test = broom::tidy(t.test(x ~ 1, data = sim_data, mu = 0))
-  
-  power_data = tibble(
-    estimate = t_test[["estimate"]],
-    p_value = t_test[["p.value"]],
-    mean = mu
-    )
-}
-
-output_sim_3 = map(file_list, sim_mean_test) %>%
-  bind_rows() #%>%   mutate(mu = mu_list)
-
-output_sim = vector("list", 5000)
-file_list = 1:5000
-
-
-sim_mean_test = function(n = 30, mu = 4, sigma = 5) {
-  
-  sim_data = tibble(
-    x = rnorm(n, mean = mu, sd = sigma), 
-    mu = mu
-  )
-  
-  t_test = broom::tidy(t.test(x ~ 1, data = sim_data, mu = 0))
-  
-  power_data = tibble(
-    estimate = t_test[["estimate"]],
-    p_value = t_test[["p.value"]],
-    mean = mu
-    )
-}
-
-output_sim_4 = map(file_list, sim_mean_test) %>%
-  bind_rows() #%>%   mutate(mu = mu_list)
-
-output_sim = vector("list", 5000)
-file_list = 1:5000
-
-
-sim_mean_test = function(n = 30, mu = 5, sigma = 5) {
-  
-  sim_data = tibble(
-    x = rnorm(n, mean = mu, sd = sigma), 
-    mu = mu
-  )
-  
-  t_test = broom::tidy(t.test(x ~ 1, data = sim_data, mu = 0))
-  
-  power_data = tibble(
-    estimate = t_test[["estimate"]],
-    p_value = t_test[["p.value"]],
-    mean = mu
-    )
-}
-
-output_sim_5 = map(file_list, sim_mean_test) %>%
-  bind_rows() #%>%   mutate(mu = mu_list)
-
-output_sim = vector("list", 5000)
-file_list = 1:5000
-
-
-sim_mean_test = function(n = 30, mu = 6, sigma = 5) {
-  
-  sim_data = tibble(
-    x = rnorm(n, mean = mu, sd = sigma), 
-    mu = mu
-  )
-  
-  t_test = broom::tidy(t.test(x ~ 1, data = sim_data, mu = 0))
-  
-  power_data = tibble(
-    estimate = t_test[["estimate"]],
-    p_value = t_test[["p.value"]],
-    mean = mu
-    )
-}
-
-output_sim_6 = map(file_list, sim_mean_test) %>%
-  bind_rows() #%>%   mutate(mu = mu_list)
-```
-
-```{r merge all}
-output_sum_all <- bind_rows(output_sim_0, output_sim_1, output_sim_2, output_sim_3, output_sim_4, output_sim_5, output_sim_6) %>%
-  mutate(significant = ifelse(p_value < 0.05, "reject_null", "not_reject_null"))
-
-```
+From our dataset created above, we will create a plot looking at the proportion of null hypotheses rejected (i.e. p-value <0.05) grouped by mean value 0:6. This will allow us to see trends of power to find a true difference in mean, based on sample mean different from population (a surrogate for the effect size).
 
 ```{r plot power}
-ggplot(output_sum_all, aes(x = mean, fill = factor(significant))) +
+ggplot(output_sim, aes(x = mu, fill = factor(significant))) +
   geom_bar(position = "fill") +
   labs(title = "Proportion of rejection by change in sample mean, Power analysis by effect Size", fill = "Null Rejection") + 
   xlab("True mean(Mu)") + ylab("Proportion")
@@ -354,26 +196,34 @@ ggplot(output_sum_all, aes(x = mean, fill = factor(significant))) +
 
 * Looking at the power among different population means, the proportion where null rejected is about 0.05 was when sample mean was 0 and population mean was 0. 
 
-* However, as effect size (mean increases from 0 to 1:6) the power should increase, i.e. we should note that the number of rejections increases as it is easier to distinguish a difference from 0 to 1:6 with stable SD = 5. This is what we see as there is an exponential increase of power when the mean goes to 1, and after stays > 95%. 
+* However, as effect size (mean increases from 0 to 1:6) the power should increase, i.e. we should note that the number of rejections increases as it is easier to distinguish a difference from 0 to 1:6 with stable SD = 5, which is the case. By the time we reach 4-6, nearly the entirety of nulls are rejected. 
+
+
+Next we will create plots to assess if our average mean (mu_hat) for our simulation varies across set mu values for those that meet criteria for null hypothesis rejection, vs all simulations. 
 
 ```{r plot mean sample vs population}
-output_sum_all %>%
-  group_by(mean, significant) %>%
-  summarize(mu_hat = mean(estimate)) %>%
-  ggplot(aes(x = mean, y = mu_hat)) + 
+output_sim %>%
+  group_by(mu) %>%
+  summarize(avg_mu_hat = mean(mu_hat)) %>%
+  ggplot(aes(x = mu, y = avg_mu_hat)) + 
   geom_point() +
-  facet_grid(significant ~ mean) +
-  labs(title = "Mean set compared to mu_hat average of all tests")
+  geom_line() +
+  labs(title = "Mean set compared to mu_hat average of all tests") +
+    xlab("True Mu value") + ylab("Average mu_hat")
 
-output_sum_all %>%
+output_sim %>%
   filter(significant == "reject_null") %>%
-  group_by(mean) %>%
-  summarize(mu_hat = mean(estimate)) %>%
-  ggplot(aes(x = mean, y = mu_hat)) + 
+  group_by(mu) %>%
+  summarize(avg_mu_hat = mean(mu_hat)) %>%
+  ggplot(aes(x = mu, y = avg_mu_hat)) + 
   geom_point() +
-  labs(title = "Mean set compared to mu_hat average of tests where null hypothesis was rejected")
+  geom_line() +
+  labs(title = "Mean set compared to mu_hat average of tests where null hypothesis was rejected") +
+    xlab("True Mu value") + ylab("Average mu_hat")
 
 
 ```
 
-* We do see that the average value of mu-hat for tests where the null hypothesis was rejected (i.e. p-value <0.05) is essentially equal to the true value of mu that we set. This makes sense as we are rejecting that the mu we set was equal to the null-mu fro the t-test (zero), so it should be close to the mu we tested it on, the one we set 0:6
+* We do see that the average value of mu-hat for tests where we include all the samples is nearly a straight line meaning mu ~ mu_hat. 
+
+* However, when we look at the lines for the points where we only include data from where the null hypothesis was rejected, it is less straight, in particular at the lower values of mu (improving at >4). This is likely because as the effect size increases with our mu further from 0, it is more likely to reject the null that are more extreme, leaving us with bigger range of mu-hat. However, when the effect size is larger with larger mu, it is easier to reject those that where mu ~ mu_hat, and gives the straighter line that we see. 
